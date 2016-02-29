@@ -13,6 +13,9 @@ web/sites/default/files
 web/sites/default/default.*
 web/sites/example.*
 
+# Ignore local settings file.
+settings.local.php
+
 # Ignore uninteresting root files.
 web/.*
 web/*.php
