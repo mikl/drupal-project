@@ -109,6 +109,9 @@ def deploy(version):
         # Uncompress the tarball on the server.
         run('tar xjf {tarball}'.format(tarball=tarball))
 
+        # Remove the tarball, now we're done with it.
+        run('rm {tarball}'.format(tarball=tarball))
+
         # Symlink Drupal site folder and configuration down into our new build.
         run('ln -s ../../../../../site/files {version}/web/sites/default'.format(version=version))
         run('ln -s ../../../../../site/settings.local.php {version}/web/sites/default'.format(version=version))
