@@ -13,6 +13,9 @@ DEPLOY_PATH = '/srv/www/sites/example.com/builds'
 SITE_PATH = DEPLOY_PATH + '/current/web'
 SITE_URL = 'https://example.com/'
 
+scripts = {
+}
+
 env.roledefs = {
     'production': ['exemplaris'],
 }
@@ -54,6 +57,13 @@ def _git_clone(buildpath, version):
         local('git checkout {version}'.format(version=version))
 
 
+def _run_scripts(phase, directory, version):
+    with lcd(directory):
+        if scripts[phase]:
+            for script in scripts[phase]:
+                local(script)
+
+
 def _validate_version(version):
     """
     Helper function to validate that a proper version was given.
@@ -68,6 +78,9 @@ def build(version='master'):
     buildpath = _buildpath(tempdir, version)
     _git_clone(buildpath, version)
     _composer_install(buildpath)
+
+    # Run scripts, if any are defined.
+    _run_scripts('post-build', buildpath, version)
 
     print 'Successfully built {profile} in {folder}'.format(folder=buildpath, profile=PROFILE_NAME)
 
