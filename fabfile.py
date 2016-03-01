@@ -14,6 +14,7 @@ SITE_PATH = DEPLOY_PATH + '/current/web'
 SITE_URL = 'https://example.com/'
 
 scripts = {
+    'pre-deploy': ( 'scripts/deploy-clean-files.sh', )
 }
 
 env.roledefs = {
@@ -107,6 +108,8 @@ def deploy(version):
 
     # Build a copy of the site.
     tempdir = build(version)
+
+    _run_scripts('pre-deploy', _buildpath(tempdir, version), version)
 
     # Generate a tarball to send to the server.
     tarball = _generate_tarball(tempdir, version)
