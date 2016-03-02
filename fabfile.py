@@ -60,7 +60,7 @@ def _git_clone(buildpath, version):
 
 def _run_scripts(phase, directory, version):
     with lcd(directory):
-        if scripts[phase]:
+        if phase in scripts:
             for script in scripts[phase]:
                 local(script)
 
