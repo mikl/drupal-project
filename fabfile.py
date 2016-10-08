@@ -130,8 +130,9 @@ def deploy(version):
         run('rm {tarball}'.format(tarball=tarball))
 
         # Symlink Drupal site folder and configuration down into our new build.
-        run('ln -s ../../../../../site/files {version}/web/sites/default'.format(version=version))
-        run('ln -s ../../../../../site/settings.local.php {version}/web/sites/default'.format(version=version))
+        run('rm -r {version}/web/sites/default/files'.format(version=version))
+        run('ln -sfF ../../../../../site/files {version}/web/sites/default'.format(version=version))
+        run('ln -sfF ../../../../../site/settings.local.php {version}/web/sites/default'.format(version=version))
 
         # Remove the old "previous" symlink, rename the "current"
         # symlink to "previous".
