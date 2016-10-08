@@ -33,6 +33,7 @@ def _buildpath(tempdir, version):
 def _composer_install(buildpath):
     with lcd(buildpath):
         local('composer install --prefer-dist --no-dev --no-progress')
+        local('composer drupal-scaffold')
 
 
 def _deploy_dirname(version):
