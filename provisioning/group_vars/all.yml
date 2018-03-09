@@ -1,0 +1,21 @@
+# Files that are not need on the server for one reason or another.
+# Documentation, tests, sensitive version info, etc.
+extraneous_files:
+  - .git*
+  - provisioning
+  - web/core/CHANGELOG.txt
+  - web/core/INSTALL*.txt
+  - web/core/MAINTAINERS.txt
+  - web/core/UPDATE.txt
+  - web/core/authorize.php
+  - web/core/install.php
+  # Contains an annoying placeholder that blocks symlinks.
+  - web/sites/default/files
+  - web/web.config
+
+relative_symlinks:
+  - from: '../../../../../site/files'
+    to: web/sites/default
+
+  - from: '../../../../../site/settings.local.php'
+    to: web/sites/default

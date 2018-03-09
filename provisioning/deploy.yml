@@ -1,0 +1,125 @@
+- name: Deploy
+  hosts: local
+  connection: local
+
+  vars_prompt:
+    - name: "git_revision"
+      prompt: "What git revision should be deployed?"
+      private: no
+
+  environment:
+    # Make tar commands skip macOS junk.
+    COPYFILE_DISABLE: 1
+
+  tasks:
+    - name: Store variables as fact for other hosts
+      set_fact:
+        git_revision: "{{ git_revision }}"
+        deploy_role: "{{ deploy_role }}"
+
+    - name: Create temporary folder for build
+      tempfile:
+        state: directory
+      register: build_folder
+
+    - name: Clone git repository
+      git:
+        # Our local git repo is the parent folder of the playbook.
+        repo: "{{ playbook_dir }}/.."
+        dest: "{{ build_folder.path }}/{{ git_revision }}"
+        version: "{{ git_revision }}"
+
+    - name: Use composer to install dependencies
+      composer:
+        working_dir: "{{ build_folder.path }}/{{ git_revision }}"
+
+    # This should be run automatically by composer install above, but due
+    # to some mysterious bug, it isn’t. So, here we run it manually as a
+    # work-around. Blah.
+    - name: Run drupal-scaffold (again)
+      composer:
+        command: run-script
+        arguments: drupal-scaffold
+        working_dir: "{{ build_folder.path }}/{{ git_revision }}"
+
+    - name: Delete extraneous files
+      # Use shell to expand globs like ".git*".
+      shell: rm -rf {{ item }}
+      args:
+        chdir: "{{ build_folder.path }}/{{ git_revision }}"
+        warn: false # Shut up about the file module.
+      with_items: "{{ extraneous_files }}"
+
+    - name: Create tarball for build
+      command: tar czf {{ git_revision }}.tar.gz {{ git_revision }}
+      args:
+        chdir: "{{ build_folder.path }}"
+        warn: false
+
+    - name: Display temporary folder to the user
+      debug:
+        msg: "Generated build in folder {{ build_folder.path }}"
+
+- name: Deploy build
+  hosts: webservers
+
+  vars:
+    local_build_path: "{{ hostvars['localhost']['build_folder']['path'] }}"
+    deploy_role: "{{ hostvars['localhost']['deploy_role'] }}"
+    drush: "{{ target_server_project_dir }}/builds/current/vendor/bin/drush --yes --root={{ target_server_project_dir }}/builds/current/web --uri={{ target_web_url }} "
+
+  tasks:
+    - name: Extract build tarball on the server
+      unarchive:
+        src: "{{ local_build_path }}/{{ git_revision }}.tar.gz"
+        dest: "{{ target_server_project_dir }}/builds"
+
+    - name: Create relative symlinks inside build
+      command: ln -sfF {{ item.from }} {{ item.to }}
+      args:
+        chdir: "{{ target_server_project_dir }}/builds/{{ git_revision }}"
+        warn: false # Shut up about the file module. Doesn’t work for relative overwrites.
+      with_items: "{{ relative_symlinks }}"
+      when: "item.roles is not defined or deploy_role in item.roles"
+
+    - name: Enable maintenance mode
+      command: "{{ drush }} sset system.maintenance_mode 1"
+
+    - name: Remove previous symlink
+      file:
+        path: "{{ target_server_project_dir }}/builds/previous"
+        state: absent
+
+    - name: Move current to previous
+      command: mv {{ target_server_project_dir }}/builds/current {{ target_server_project_dir }}/builds/previous
+
+    - name: Symlink new build as current
+      file:
+        src: "{{ target_server_project_dir }}/builds/{{ git_revision }}"
+        dest: "{{ target_server_project_dir }}/builds/current"
+        state: link
+
+    - name: Rebuild Drupal caches
+      command: "{{ drush }} cr"
+
+    - name: Run database updates
+      command: "{{ drush }} updatedb"
+
+    - name: Import configuration changes
+      command: "{{ drush }} cim"
+
+    - name: Disable maintenance mode
+      command: "{{ drush }} sset system.maintenance_mode 0"
+
+    - name: Rebuild Drupal caches again
+      command: "{{ drush }} cr"
+
+- name: Deploy
+  hosts: localhost
+  connection: local
+
+  tasks:
+    - name: Delete local build folder
+      file:
+        path: "{{ build_folder.path }}"
+        state: absent
